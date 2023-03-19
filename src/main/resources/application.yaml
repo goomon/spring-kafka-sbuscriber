@@ -1,0 +1,42 @@
+# Required connection configs for Kafka producer, consumer, and admin
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/postgres
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: create
+    properties:
+      hibernate:
+        show_sql: true
+        format_sql: true
+
+  kafka:
+    properties:
+      bootstrap.servers: pkc-e82om.ap-northeast-2.aws.confluent.cloud:9092
+      sasl:
+        jaas:
+          config: org.apache.kafka.common.security.plain.PlainLoginModule required username='X5C7SE2YCCK2UE3K' password='SMdd2xdQ3yB1MadVtpVDicpvgg4+HwsGRSS+UxdBhHgbL5hzLGbseDf+aCp4UyFX';
+        mechanism: PLAIN
+      security.protocol: SASL_SSL
+      linger.ms: 0
+      batch.size: 16384
+    streams:
+      replication-factor: 3
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "metrics, prometheus"
+
+user:
+  topic: "partition3"
+  nodeId: 1
+
+logging:
+  level:
+    root: info
