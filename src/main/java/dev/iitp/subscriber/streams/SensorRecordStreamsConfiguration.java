@@ -1,6 +1,9 @@
 package dev.iitp.subscriber.streams;
 
 import dev.iitp.subscriber.model.SensorRecord;
+import dev.iitp.subscriber.model.cache.SensorWindowQueue;
+import dev.iitp.subscriber.model.feature.SensorRecordFeature;
+import dev.iitp.subscriber.transformer.SensorWindowTransformer;
 import dev.iitp.subscriber.util.extractor.SensorRecordTimestampExtractor;
 import lombok.RequiredArgsConstructor;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
@@ -12,6 +15,10 @@ import org.apache.kafka.streams.Topology;
 import org.apache.kafka.streams.kstream.Consumed;
 import org.apache.kafka.streams.kstream.KStream;
 import org.apache.kafka.streams.kstream.Printed;
+import org.apache.kafka.streams.state.KeyValueBytesStoreSupplier;
+import org.apache.kafka.streams.state.KeyValueStore;
+import org.apache.kafka.streams.state.StoreBuilder;
+import org.apache.kafka.streams.state.Stores;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.kafka.KafkaProperties;
 import org.springframework.context.annotation.Bean;
@@ -34,6 +41,10 @@ public class SensorRecordStreamsConfiguration {
 
     @Value("${user.topic}")
     private String topic;
+    @Value("${user.preprocess.window.size}")
+    private long windowSize;
+    @Value("${user.preprocess.window.overlap.ratio}")
+    private double overlapRatio;
 
     private final SensorRecordTimestampExtractor timestampExtractor;
     private final KafkaProperties kafkaProperties;
@@ -42,11 +53,21 @@ public class SensorRecordStreamsConfiguration {
     public KStream<String, SensorRecordFeature> kStream(StreamsBuilder streamsBuilder) {
         // Serde settings.
         Serde<String> stringSerde = Serdes.String();
-        JsonSerde<SensorRecord> jsonSerde = new JsonSerde(new JsonSerializer(), new JsonDeserializer(SensorRecord.class, false));
-        KStream<String, SensorRecord> stream = streamsBuilder.stream(topic, Consumed.with(stringSerde, jsonSerde)
-                .withOffsetResetPolicy(Topology.AutoOffsetReset.EARLIEST)
-                .withTimestampExtractor(timestampExtractor));
-        stream.print(Printed.<String, SensorRecord>toSysOut().withLabel("debug"));
+        JsonSerde<SensorRecord> sensorRecordJsonSerde = new JsonSerde(new JsonSerializer(), new JsonDeserializer(SensorRecord.class, false));
+        JsonSerde<SensorWindowQueue> sensorWindowQueueJsonSerde = new JsonSerde<>(new JsonSerializer<>(), new JsonDeserializer<>(SensorWindowQueue.class, false));
+
+        // StateStore settings.
+        KeyValueBytesStoreSupplier storeSupplier = Stores.inMemoryKeyValueStore(APPLICATION_ID);
+        StoreBuilder<KeyValueStore<String, SensorWindowQueue>> storeBuilder = Stores.keyValueStoreBuilder(storeSupplier, stringSerde, sensorWindowQueueJsonSerde);
+        streamsBuilder.addStateStore(storeBuilder);
+
+        // Stream definition.
+        KStream<String, SensorRecordFeature> stream = streamsBuilder.stream(topic, Consumed.with(stringSerde, sensorRecordJsonSerde)
+                        .withOffsetResetPolicy(Topology.AutoOffsetReset.EARLIEST)
+                        .withTimestampExtractor(timestampExtractor))
+                .transformValues(() -> new SensorWindowTransformer(APPLICATION_ID, windowSize, overlapRatio), APPLICATION_ID)
+                .filter((key, value) -> value != null);
+        stream.print(Printed.<String, SensorRecordFeature>toSysOut().withLabel("debug"));
         return stream;
     }
 

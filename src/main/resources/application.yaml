@@ -36,6 +36,11 @@ management:
 user:
   topic: "partition3"
   nodeId: 1
+  preprocess:
+    window:
+      size: 5000
+      overlap:
+        ratio: 0.2
 
 logging:
   level:
