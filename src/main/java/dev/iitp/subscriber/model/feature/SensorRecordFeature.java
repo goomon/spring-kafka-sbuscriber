@@ -6,7 +6,7 @@ import lombok.*;
 @Getter @Setter
 @AllArgsConstructor
 @NoArgsConstructor
-public class SensorFeatureRecord {
+public class SensorRecordFeature {
 
     private String userId;
     private long timestamp;

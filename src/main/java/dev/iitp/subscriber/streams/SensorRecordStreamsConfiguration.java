@@ -30,6 +30,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class SensorRecordStreamsConfiguration {
 
+    private static String APPLICATION_ID = "sensor-data-streams";
+
     @Value("${user.topic}")
     private String topic;
 
@@ -37,7 +39,8 @@ public class SensorRecordStreamsConfiguration {
     private final KafkaProperties kafkaProperties;
 
     @Bean
-    public KStream<String, SensorRecord> kStream(StreamsBuilder streamsBuilder) {
+    public KStream<String, SensorRecordFeature> kStream(StreamsBuilder streamsBuilder) {
+        // Serde settings.
         Serde<String> stringSerde = Serdes.String();
         JsonSerde<SensorRecord> jsonSerde = new JsonSerde(new JsonSerializer(), new JsonDeserializer(SensorRecord.class, false));
         KStream<String, SensorRecord> stream = streamsBuilder.stream(topic, Consumed.with(stringSerde, jsonSerde)
@@ -50,7 +53,7 @@ public class SensorRecordStreamsConfiguration {
     @Bean(name = KafkaStreamsDefaultConfiguration.DEFAULT_STREAMS_CONFIG_BEAN_NAME)
     public KafkaStreamsConfiguration kafkaStreamsConfiguration() {
         Map<String, Object> props = kafkaProperties.buildStreamsProperties();
-        props.put(StreamsConfig.APPLICATION_ID_CONFIG, "sensor-data-streams");
+        props.put(StreamsConfig.APPLICATION_ID_CONFIG, APPLICATION_ID);
         props.put(StreamsConfig.NUM_STREAM_THREADS_CONFIG, 1);
         props.put(ConsumerConfig.GROUP_ID_CONFIG, "sensor-data-streams");
         props.put(ConsumerConfig.GROUP_INSTANCE_ID_CONFIG, "sensor-data-streams");
