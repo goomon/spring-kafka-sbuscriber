@@ -42,8 +42,10 @@ public class SensorRecordStreamsConfiguration {
 
     private static String APPLICATION_ID = "sensor-data-streams";
 
-    @Value("${user.topic}")
+    @Value("${user.topic.default}")
     private String topic;
+    @Value("${user.topic.feature}")
+    private String featureTopic;
     @Value("${user.preprocess.window.size}")
     private long windowSize;
     @Value("${user.preprocess.window.overlap.ratio}")
@@ -59,6 +61,7 @@ public class SensorRecordStreamsConfiguration {
         // Serde settings.
         Serde<String> stringSerde = Serdes.String();
         JsonSerde<SensorRecord> sensorRecordJsonSerde = new JsonSerde(new JsonSerializer(), new JsonDeserializer(SensorRecord.class, false));
+        JsonSerde<SensorRecordFeature> sensorRecordFeatureJsonSerde = new JsonSerde(new JsonSerializer(), new JsonDeserializer(SensorRecordFeature.class, false));
         JsonSerde<SensorWindowQueue> sensorWindowQueueJsonSerde = new JsonSerde<>(new JsonSerializer<>(), new JsonDeserializer<>(SensorWindowQueue.class, false));
 
         // StateStore settings.
@@ -72,6 +75,9 @@ public class SensorRecordStreamsConfiguration {
                         .withTimestampExtractor(timestampExtractor))
                 .transformValues(() -> new SensorWindowTransformer(APPLICATION_ID, windowSize, overlapRatio), APPLICATION_ID)
                 .filter((key, value) -> value != null);
+
+        // Save to feature topic.
+        stream.to(featureTopic, Produced.with(stringSerde, sensorRecordFeatureJsonSerde));
 
         // Save to Database.
         stream.foreach((key, value) ->  repository.save(value));

@@ -34,7 +34,9 @@ management:
         include: "metrics, prometheus"
 
 user:
-  topic: "partition3"
+  topic:
+    default: "partition3"
+    feature: "sensor_data_feature"
   nodeId: 1
   preprocess:
     window:
