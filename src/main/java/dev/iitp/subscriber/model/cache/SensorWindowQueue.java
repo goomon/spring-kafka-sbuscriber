@@ -66,7 +66,7 @@ public class SensorWindowQueue {
         double tempVar = tempStreamSupplier.get().map(x -> x - tempMean).map(x -> x * x).mapToDouble(x -> x).average().getAsDouble();
 
         lastExtracted = timestamp;
-        return new SensorRecordFeature(userId, timestamp, new SensorRecordFeature.Value(
+        return new SensorRecordFeature(null, userId, timestamp, new SensorRecordFeature.Value(
                 new AccelerometerFeature(accXMean, accYMean, accZMean, accXVar, accYVar, accZVar),
                 new BloodVolumePressureFeature(bvpMean, bvpVar),
                 new ElectrodernalActivityFeature(edaMean, edaVar),

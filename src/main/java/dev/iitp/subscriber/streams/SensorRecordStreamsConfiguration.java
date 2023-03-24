@@ -3,6 +3,7 @@ package dev.iitp.subscriber.streams;
 import dev.iitp.subscriber.model.SensorRecord;
 import dev.iitp.subscriber.model.cache.SensorWindowQueue;
 import dev.iitp.subscriber.model.feature.SensorRecordFeature;
+import dev.iitp.subscriber.repository.SensorFeatureRepository;
 import dev.iitp.subscriber.transformer.SensorWindowTransformer;
 import dev.iitp.subscriber.util.extractor.SensorRecordTimestampExtractor;
 import lombok.RequiredArgsConstructor;
@@ -15,6 +16,7 @@ import org.apache.kafka.streams.Topology;
 import org.apache.kafka.streams.kstream.Consumed;
 import org.apache.kafka.streams.kstream.KStream;
 import org.apache.kafka.streams.kstream.Printed;
+import org.apache.kafka.streams.kstream.Produced;
 import org.apache.kafka.streams.state.KeyValueBytesStoreSupplier;
 import org.apache.kafka.streams.state.KeyValueStore;
 import org.apache.kafka.streams.state.StoreBuilder;
@@ -30,6 +32,7 @@ import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.kafka.support.serializer.JsonSerde;
 import org.springframework.kafka.support.serializer.JsonSerializer;
 
+import javax.transaction.Transactional;
 import java.util.Map;
 
 @Configuration
@@ -48,8 +51,10 @@ public class SensorRecordStreamsConfiguration {
 
     private final SensorRecordTimestampExtractor timestampExtractor;
     private final KafkaProperties kafkaProperties;
+    private final SensorFeatureRepository repository;
 
     @Bean
+    @Transactional
     public KStream<String, SensorRecordFeature> kStream(StreamsBuilder streamsBuilder) {
         // Serde settings.
         Serde<String> stringSerde = Serdes.String();
@@ -67,6 +72,9 @@ public class SensorRecordStreamsConfiguration {
                         .withTimestampExtractor(timestampExtractor))
                 .transformValues(() -> new SensorWindowTransformer(APPLICATION_ID, windowSize, overlapRatio), APPLICATION_ID)
                 .filter((key, value) -> value != null);
+
+        // Save to Database.
+        stream.foreach((key, value) ->  repository.save(value));
         stream.print(Printed.<String, SensorRecordFeature>toSysOut().withLabel("debug"));
         return stream;
     }
