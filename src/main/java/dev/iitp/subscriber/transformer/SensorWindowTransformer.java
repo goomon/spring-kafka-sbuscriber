@@ -13,10 +13,12 @@ public class SensorWindowTransformer implements ValueTransformer<SensorRecord, S
 
     private KeyValueStore<String, SensorWindowQueue> stateStore;
     private String storeName;
+    private int windowQueueSize;
     private double samplingRate;
 
     public SensorWindowTransformer(String storeName, long windowSize, double overlapRatio) {
         this.storeName = storeName;
+        this.windowQueueSize = (int) windowSize / 1000;
         this.samplingRate = (double) windowSize * (1 - overlapRatio);
     }
 
@@ -36,7 +38,9 @@ public class SensorWindowTransformer implements ValueTransformer<SensorRecord, S
         }
         sensorWindowQueue.setTimestamp(timestamp);
         sensorWindowQueue.push(value);
-        if (sensorWindowQueue.getQueueSize() > 3) {
+
+        // Maintain the number of raw data in window processing queue.
+        if (sensorWindowQueue.getQueueSize() > windowQueueSize) {
             sensorWindowQueue.pop();
         }
 
